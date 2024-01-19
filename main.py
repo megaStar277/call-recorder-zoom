@@ -68,18 +68,13 @@ def join_meeting(zoom_meeting: ZoomMeeting):
     --security-opt seccomp:unconfined \
     zoomrec:v0.1.0 \
     -u '{zoom_meeting.meeting_link}' \
-    -n 'Bot' \
-    -d 'Botjoined'"
+    -n 'CoPitch AI' \
+    -d ''"
     # Here you would typically use something like the subprocess module to execute the command
 
     # run the command
-    known_files = os.listdir('recordings')
-    subprocess.Popen(command, shell=True)
-    print("start process")
+    process = subprocess.Popen(command, shell=True)
+    process.wait()
+    print("joined successfully")
 
-    result = check_new_txt_file('recordings', known_files)
-    print("completed")
-    with open(f"recordings/{result}", "r") as file:
-        # read the file
-        contents = file.read()
-    return contents
+    return True

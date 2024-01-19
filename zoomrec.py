@@ -7,6 +7,7 @@ from pydub import AudioSegment
 from dotenv import load_dotenv
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 load_dotenv()
 
@@ -29,7 +30,7 @@ def join_meeting(name):
         try: 
             pyautogui.locateCenterOnScreen("./img/name_field_check.png", confidence= 0.8)
             time.sleep(random.uniform(1,2))
-            pyautogui.write(name, interval=0.1)
+            pyautogui.write(name, interval=0.5)
 
             x, y = pyautogui.locateCenterOnScreen("./img/join.png", confidence= 0.8)
             time.sleep(random.uniform(1,2))
@@ -95,36 +96,44 @@ def check_meeting_ended():
             time.sleep(1)
 
 def record_meeting(name, description):
-    if join_meeting(name):
+    is_joined = join_meeting(name)
+    if is_joined:
         audio_name = f"{description if description else 'zoom'}_{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-        record_audio(f"{audio_name}.mp3")
+        with ThreadPoolExecutor() as executor:
+            executor.submit(record_audio, f"{audio_name}.mp3")
         return audio_name
     else:
         return 0
     
 def transcribe_meeting(audio_name):
-    audio_file = AudioSegment.from_mp3(f"/home/zoomrec/recordings/{audio_name}.mp3")
+    while True:
+        if os.path.exists(f"/home/zoomrec/recordings/{audio_name}.mp3"):
+            print(f'File {audio_name}.mp3 has been found!')
+            audio_file = AudioSegment.from_mp3(f"/home/zoomrec/recordings/{audio_name}.mp3")
+            audio_length =  len(audio_file)
+            print(audio_length)
+            transcription = ''
+            ten_minutes= 600 * 1000
 
-    audio_length =  len(audio_file)
-    print(audio_length)
-    transcription = ''
-    ten_minutes= 600 * 1000
+            for last_snippet_time_stamp in range(0, audio_length, ten_minutes):
+                snippet = audio_file[last_snippet_time_stamp: ten_minutes]
+                snippet.export("audio_snippet.mp3", format="mp3")
+                snippet_transcription = client.audio.transcriptions.create(
+                        model="whisper-1", 
+                        file=open("audio_snippet.mp3", "rb"), 
+                        response_format="text"
+                    )
+                transcription = transcription + snippet_transcription
 
-    for last_snippet_time_stamp in range(0, audio_length, ten_minutes):
-        snippet = audio_file[last_snippet_time_stamp: ten_minutes]
-        snippet.export("audio_snippet.mp3", format="mp3")
-        snippet_transcription = client.audio.transcriptions.create(
-                model="whisper-1", 
-                file=open("audio_snippet.mp3", "rb"), 
-                response_format="text"
-            )
-        transcription = transcription + snippet_transcription
+            print(transcription)
 
-    print(transcription)
-
-    #Optional
-    with open(f"/home/zoomrec/recordings/{audio_name}.txt", "w") as file:
-        file.write(transcription)
+            #Optional
+            with open(f"/home/zoomrec/recordings/{audio_name}.txt", "w") as file:
+                file.write(transcription)
+            break  # Exit the loop
+        else:
+            print(f'Waiting for the file {audio_name}.mp3...')
+            time.sleep(1)  # Wait for 1 second and check again
 
 # Setting logging
 from loguru import logger
@@ -187,18 +196,13 @@ if __name__ == "__main__":
                                 shell=True, preexec_fn=os.setsid)
 
     name = args.name
+    print("bot name: ", name)
     description = args.description
 
     time.sleep(random.uniform(3, 5))
 
     audio_name = record_meeting(name, description)
     if audio_name != 0:
-        while True:
-            if os.path.exists(f"/home/zoomrec/recordings/{audio_name}.mp3"):
-                print(f'File {audio_name}.mp3 has been found!')
-                transcribe_meeting(audio_name)
-                break  # Exit the loop
-            else:
-                print(f'Waiting for the file {audio_name}.mp3...')
-                time.sleep(1)  # Wait for 1 second and check again
+        with ThreadPoolExecutor() as executor:
+            executor.submit(transcribe_meeting, audio_name)
     print(audio_name)
