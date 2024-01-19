@@ -8,3 +8,6 @@ requests
 loguru
 numpy
 pyvirtualcam
+openai
+pydub
+python-dotenv

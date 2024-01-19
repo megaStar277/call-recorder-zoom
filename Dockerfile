@@ -120,6 +120,7 @@ ADD res/entrypoint.sh ${START_DIR}/entrypoint.sh
 ADD res/xfce.sh ${START_DIR}/xfce.sh
 
 # Add python script with resources
+ADD .env ${HOME}/
 ADD zoomrec.py ${HOME}/
 ADD res/img ${HOME}/img
 

@@ -54,18 +54,16 @@ pactl set-source-volume 3 0%
 echo -e "\nStart script.."
 sleep 5
 
-while getopts ":u:n:d:i:p:t:m:" flag; do
+while getopts ":u:n:d:i:p:" flag; do
     case "${flag}" in
         u) url=${OPTARG};;
         n) name=${OPTARG};;
         d) description=${OPTARG};;
         i) id=${OPTARG};;
         p) passcode=${OPTARG};;
-        t) type=${OPTARG};;
-        m) mail=${OPTARG};;
     esac
 done
 
-echo $type
+echo $url
 
-python3 ${HOME}/zoomrec.py -u "${url}" -n "${name}" -d "${description}" -i "${id}" -p "${passcode}" -t "${type}" -m "${mail}"
+python3 ${HOME}/zoomrec.py -u "${url}" -n "${name}" -d "${description}" -i "${id}" -p "${passcode}"

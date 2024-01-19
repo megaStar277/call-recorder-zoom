@@ -2,179 +2,129 @@ import subprocess
 from datetime import datetime
 import time
 import random
-from urllib.parse import urlparse, urlunparse
+from openai import OpenAI
+from pydub import AudioSegment
+from dotenv import load_dotenv
+import os
+import time
 
-class ZoomRecorder:
+load_dotenv()
 
-    def __init__(self, url, name, description, type, email=None):
-        self.pyautogui = __import__('pyautogui')
-        self.url = url
-        self.name =name
-        self.filename = f"{description if description else 'zoom'}_{datetime.now().strftime('%Y%m%d-%H%M%S')}.mp3"
-        self.email = email
-        self.type = type
-        
-        # get id from url
-        url_parts = urlparse(self.url).path.split('/')
-        if '' in url_parts:
-            url_parts.remove('')
-        self.id = url_parts[-1]
+client = OpenAI(
+  api_key=os.getenv('API_KEY'),  # this is also the default, it can be omitted
+)
 
-    def check_invalid_meeting(self):
+def check_invalid_meeting():
+    import pyautogui
+    try:
+        pyautogui.locateCenterOnScreen("./img/invalid_meeting_id.png", confidence=0.8)
+        return True
+    except Exception as e:
+        return False
+    
+def join_meeting(name):
+    import pyautogui
+
+    while True:
+        try: 
+            pyautogui.locateCenterOnScreen("./img/name_field_check.png", confidence= 0.8)
+            time.sleep(random.uniform(1,2))
+            pyautogui.write(name, interval=0.1)
+
+            x, y = pyautogui.locateCenterOnScreen("./img/join.png", confidence= 0.8)
+            time.sleep(random.uniform(1,2))
+            pyautogui.click(x, y)
+            break
+        except Exception as e:
+            if check_invalid_meeting():
+                print("Invalid Meeting Link Provided")
+                return 0
+            else:
+                time.sleep(0.1)
+    print("Joined. Waiting to be admitted")
+
+    while True:
         try:
-            self.pyautogui.locateCenterOnScreen("./img/invalid_meeting_id.png", confidence=0.8)
+            x, y = pyautogui.locateCenterOnScreen("./img/join_with_computer_audio.png", confidence= 0.8)
+            time.sleep(random.uniform(1,2))
+            pyautogui.click(x, y)
+            break
+        except Exception as e:
+            try:
+                x, y = pyautogui.locateCenterOnScreen("./img/join_audio.png", confidence= 0.8)
+                time.sleep(random.uniform(1,2))
+                pyautogui.click(x, y)
+            except:
+                time.sleep(0.1)
+    print("Joined the meeting, Recording now...")
+
+    return True
+        
+def record_audio(filename):
+    proc = subprocess.Popen(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "pulse",
+            "-i",
+            "ZoomRec.monitor",
+            "-acodec",
+            "libmp3lame",
+            "-b:a",
+            "128k",
+            "-async",
+            "1",
+            "-vn",
+            f"/home/zoomrec/recordings/{filename}",
+        ],
+    )
+
+    check_meeting_ended()
+
+    proc.terminate()
+    proc.wait()
+
+def check_meeting_ended():
+    import pyautogui
+    while True:
+        try:
+            pyautogui.locateCenterOnScreen("./img/end.png", confidence=0.8)
             return True
         except Exception as e:
-            return False
-    
-    def check_in_webinar(self):
-        try:
-            self.pyautogui.locateCenterOnScreen("./img/leave.png", confidence= 0.8)
-            return 1
-        except Exception as e:
-            return 0
+            time.sleep(1)
 
-    def join_webinar(self):
-        
-        time.sleep(2)
-        # Join the meeting if the link is not working well
-        while True:
-            if self.check_waiting_room():
-                break
-            
-            if self.check_in_webinar():
-                return 1
-            try:
-                x, y = self.pyautogui.locateCenterOnScreen("./img/join_meeting.png", confidence= 0.8)
-                self.pyautogui.click(x, y)
-                time.sleep(random.uniform(1, 2))
-
-                x, y = self.pyautogui.locateCenterOnScreen("./img/meeting_id.png", confidence= 0.8)
-                self.pyautogui.click(x, y)
-                time.sleep(random.uniform(0, 1))
-                self.pyautogui.write(self.id, interval= 0.1)
-                time.sleep(random.uniform(1, 2))
-
-                x, y = self.pyautogui.locateCenterOnScreen("./img/name_field.png", confidence= 0.8)
-                self.pyautogui.click(x, y)
-                time.sleep(random.uniform(0, 1))
-                self.pyautogui.write(self.name, interval= 0.1)
-                time.sleep(random.uniform(1, 2))
-
-                x, y = self.pyautogui.locateCenterOnScreen("./img/join.png", confidence= 0.8)
-                self.pyautogui.click(x, y)
-                time.sleep(random.uniform(1, 2))
-
-                x, y = self.pyautogui.locateCenterOnScreen("./img/email_field.png", confidence= 0.8)
-                self.pyautogui.click(x, y)
-                time.sleep(random.uniform(0, 1))
-                self.pyautogui.write(self.email, interval= 0.1)
-                time.sleep(random.uniform(1, 2))
-
-                x, y = self.pyautogui.locateCenterOnScreen("./img/join_webinar.png", confidence= 0.8)
-                self.pyautogui.click(x, y)
-
-            except Exception as e:
-                print(e)
-
-        print("Joining process success, waiting for starting")
-        # waiting in the waiting room
-        while True:
-            if self.check_waiting_room() == 0:
-                return 1
-        
-    def join_meeting(self):
-
-        while True:
-            try: 
-                self.pyautogui.locateCenterOnScreen("./img/name_field_check.png", confidence= 0.8)
-                time.sleep(random.uniform(1,2))
-                self.pyautogui.write(self.name, interval=0.1)
-
-                x, y = self.pyautogui.locateCenterOnScreen("./img/join.png", confidence= 0.8)
-                time.sleep(random.uniform(1,2))
-                self.pyautogui.click(x, y)
-                break
-            except Exception as e:
-                if self.check_invalid_meeting():
-                    print("Invalid Meeting Link Provided")
-                    return 0
-                else:
-                    time.sleep(0.1)
-        print("Joined. Waiting to be admitted")
-
-        while True:
-            try:
-                x, y = self.pyautogui.locateCenterOnScreen("./img/join_with_computer_audio.png", confidence= 0.8)
-                time.sleep(random.uniform(1,2))
-                self.pyautogui.click(x, y)
-                break
-            except Exception as e:
-                try:
-                    x, y = self.pyautogui.locateCenterOnScreen("./img/join_audio.png", confidence= 0.8)
-                    time.sleep(random.uniform(1,2))
-                    self.pyautogui.click(x, y)
-                except:
-                    time.sleep(0.1)
-        print("Joined the meeting, Recording now...")
-
-        return True
-            
-    def record_audio(self):
-        proc = subprocess.Popen(
-            [
-                "ffmpeg",
-                "-y",
-                "-f",
-                "pulse",
-                "-i",
-                "ZoomRec.monitor",
-                "-acodec",
-                "libmp3lame",
-                "-b:a",
-                "128k",
-                "-async",
-                "1",
-                "-vn",
-                f"/home/zoomrec/recordings/{self.filename}",
-            ],
-        )
-
-        self.check_meeting_ended()
-
-        proc.terminate()
-        proc.wait()
-
-    def check_meeting_ended(self):
-        while True:
-            try:
-                self.pyautogui.locateCenterOnScreen("./img/end.png", confidence=0.8)
-                return True
-            except Exception as e:
-                time.sleep(1)
-
-    def record_zoom(self):
-
-        joined = self.join_webinar() if self.type == 1 else self.join_meeting()
-        if joined:
-            self.record_audio()
-            return 1
-        else:
-            return 0
-
-    def check_waiting_room(self):
-        try:
-            self.pyautogui.locateCenterOnScreen("./img/waiting_webinar.png", confidence= 0.8)
-            return 1
-        except Exception as e:
-            pass
-        try:
-            self.pyautogui.locateCenterOnScreen("./img/waiting_soon.png", confidence= 0.8)
-            return 1
-        except Exception as e:
-            pass
+def record_meeting(name, description):
+    if join_meeting(name):
+        audio_name = f"{description if description else 'zoom'}_{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        record_audio(f"{audio_name}.mp3")
+        return audio_name
+    else:
         return 0
+    
+def transcribe_meeting(audio_name):
+    audio_file = AudioSegment.from_mp3(f"/home/zoomrec/recordings/{audio_name}.mp3")
 
+    audio_length =  len(audio_file)
+    print(audio_length)
+    transcription = ''
+    ten_minutes= 600 * 1000
+
+    for last_snippet_time_stamp in range(0, audio_length, ten_minutes):
+        snippet = audio_file[last_snippet_time_stamp: ten_minutes]
+        snippet.export("audio_snippet.mp3", format="mp3")
+        snippet_transcription = client.audio.transcriptions.create(
+                model="whisper-1", 
+                file=open("audio_snippet.mp3", "rb"), 
+                response_format="text"
+            )
+        transcription = transcription + snippet_transcription
+
+    print(transcription)
+
+    #Optional
+    with open(f"/home/zoomrec/recordings/{audio_name}.txt", "w") as file:
+        file.write(transcription)
 
 # Setting logging
 from loguru import logger
@@ -221,8 +171,6 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--passcode", type=str, help="Meeting Passcode")
     parser.add_argument("-n", "--name", type=str, help="Display Name", required=True)
     parser.add_argument("-d", "--description", type=str, help="Description")
-    parser.add_argument("-t", "--type", type=int, help="if meeting -t 0 if webinar -t 1")
-    parser.add_argument("-m", "--mail", type=str, help="email")
 
     args = parser.parse_args()
 
@@ -235,17 +183,23 @@ if __name__ == "__main__":
         id = args.id
         passcode = args.passcode
         print(id, passcode)
-        url = f"zoommtg://zoom.us/join?action=join&confno={id}&pwd={passcode}"
-        zoom = subprocess.Popen(f'zoom --url="{url}"', stdout=subprocess.DEVNULL, stderr = subprocess.DEVNULL,
+        zoom = subprocess.Popen(f'zoom --url="zoommtg://zoom.us/join?confno={id}&pwd={passcode}"', stdout=subprocess.DEVNULL, stderr = subprocess.DEVNULL,
                                 shell=True, preexec_fn=os.setsid)
 
     name = args.name
     description = args.description
-    zoom_type = args.type
-    mail = args.mail
 
     time.sleep(random.uniform(3, 5))
 
-    zoomrec = ZoomRecorder(url, name, description, zoom_type, mail)
-    zoomrec.record_zoom()
+    audio_name = record_meeting(name, description)
+    if audio_name != 0:
+        while True:
+            if os.path.exists(f"/home/zoomrec/recordings/{audio_name}.mp3"):
+                print(f'File {audio_name}.mp3 has been found!')
+                transcribe_meeting(audio_name)
+                break  # Exit the loop
+            else:
+                print(f'Waiting for the file {audio_name}.mp3...')
+                time.sleep(1)  # Wait for 1 second and check again
+        
 
