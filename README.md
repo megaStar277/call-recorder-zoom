@@ -1,3 +1,8 @@
+## Run API endpoint
+
+pip install -r requirements.txt
+uvicorn main:app --reload
+
 ## Build Docker
 
 $ docker build . -t zoomrec:v1.0.0
